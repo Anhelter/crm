@@ -1,0 +1,71 @@
+version: '3'
+
+services: 
+
+  db:
+    image: postgres
+    container_name: db1
+    restart: always
+    tty: true
+    volumes:
+      - ./data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d # Asegúrate de que esta carpeta contenga init.sql
+    environment: 
+      - POSTGRES_PASSWORD=1234 # Contraseña para el usuario "postgres"
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=erpapp
+      - PGDATA=/var/lib/postgresql/data/pgdata # Definir la carpeta de datos
+    ports: 
+      - "5433:5432"
+    networks: 
+      - node-network1
+
+  back-end:
+    build: 
+      context: node
+    container_name: back-end1
+    working_dir: /usr/src/app
+    networks: 
+      - node-network1
+    volumes: 
+      - ./node:/usr/src/app
+      - /usr/src/app/node_modules
+    tty: true
+    ports: 
+      - "3001:3000"
+    command: npm run start
+    depends_on:
+       - db
+
+  front-end:
+    build: 
+      context: react
+    container_name: front-end1
+    working_dir: /usr/src/app
+    networks: 
+      - node-network1
+    volumes: 
+      - ./react:/usr/src/app
+      - /usr/src/app/node_modules
+    tty: true
+    ports: 
+      - "5174:5173"
+    command: npm run dev
+
+  nginx:
+    build: 
+      context: nginx
+    container_name: nginx1
+    restart: always
+    tty: true
+    ports: 
+      - "8001:80"
+    networks: 
+      - node-network1
+    depends_on:
+       - back-end
+       - front-end
+  
+networks: 
+  node-network1:
+    driver: bridge
